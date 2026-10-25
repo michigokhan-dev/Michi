@@ -1,4 +1,4 @@
-let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [] }]
+let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [], comments: [] }]
 let defaultProfile = { name: "Michi Ayaydin", bio: "Luxury mind • Black & Gold soul ✨", followers: 342, following: 128, photo: null }
 
 function loadPosts(){ try{ const s=localStorage.getItem('michi_posts'); return s?JSON.parse(s):defaultPosts }catch(e){ return defaultPosts } }
@@ -8,17 +8,9 @@ function loadNotifications(){ try{ const s=localStorage.getItem('michi_notificat
 let posts = loadPosts()
 let profileData = loadProfile()
 let notifications = loadNotifications()
-let draftMedia = [] // Çoklu resim/video draft - kaybolmayacak!
+let draftMedia = []
 
-function savePosts(){ 
-  try{ localStorage.setItem('michi_posts', JSON.stringify(posts)) } 
-  catch(e){ 
-    // Çok büyükse sadece text kaydet, media memory'de kalır
-    console.log('Storage full, saving text only')
-    const textOnly = posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[]}))
-    try{ localStorage.setItem('michi_posts', JSON.stringify(textOnly)) }catch(e2){}
-  } 
-}
+function savePosts(){ try{ localStorage.setItem('michi_posts', JSON.stringify(posts)) }catch(e){ const textOnly=posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[], comments:p.comments||[] })); try{ localStorage.setItem('michi_posts', JSON.stringify(textOnly)) }catch(e2){} } }
 function saveProfile(){ localStorage.setItem('michi_profile', JSON.stringify(profileData)) }
 function saveNotifications(){ localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }
 
@@ -46,7 +38,6 @@ async function render(){
 
   document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
   
-  // Draft media preview - Feed'e basıp geri gelince kaybolmasın!
   const previewGrid = document.getElementById('previewGrid')
   const postPhotoPreview = document.getElementById('postPhotoPreview')
   if(previewGrid && draftMedia.length > 0){
@@ -64,7 +55,7 @@ async function render(){
   function addPost(){
     const text=input?.value.trim()
     if(!text && draftMedia.length===0) return
-    posts.unshift({ text: text||'', media: [...draftMedia], liked: false, likes: 0 })
+    posts.unshift({ text: text||'', media: [...draftMedia], liked: false, likes: 0, comments: [] })
     savePosts()
     draftMedia = []
     if(input) input.value=''
@@ -80,6 +71,44 @@ async function render(){
   document.querySelectorAll('.likeBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); posts[i].liked=!posts[i].liked; posts[i].likes+=posts[i].liked?1:-1; savePosts(); render() } })
   document.querySelectorAll('.deletePostBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); if(confirm('Delete this post?')){ posts.splice(i,1); savePosts(); render() } } })
   document.querySelectorAll('.editPostBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); const nt=prompt('Edit your post:', posts[i].text); if(nt!==null && nt.trim()!==''){ posts[i].text=nt.trim(); savePosts(); render() } } })
+  
+  document.querySelectorAll('.commentBtn').forEach(b=>{
+    b.onclick=()=>{
+      const i=b.getAttribute('data-index')
+      const box=document.getElementById(`comments-${i}`)
+      if(box) box.classList.toggle('hidden')
+    }
+  })
+
+  function addComment(index, text){
+    if(!text.trim()) return
+    if(!posts[index].comments) posts[index].comments = []
+    posts[index].comments.push({ user: profileData.name, text: text.trim(), time: 'Now' })
+    savePosts()
+    render()
+    setTimeout(()=>{
+      const box=document.getElementById(`comments-${index}`)
+      if(box) box.classList.remove('hidden')
+    },100)
+  }
+
+  document.querySelectorAll('.postCommentBtn').forEach(b=>{
+    b.onclick=()=>{
+      const i=b.getAttribute('data-index')
+      const inp=document.getElementById(`commentInput-${i}`)
+      if(inp){ addComment(i, inp.value); inp.value='' }
+    }
+  })
+
+  document.querySelectorAll('[id^="commentInput-"]').forEach(inp=>{
+    inp.onkeydown=(e)=>{
+      if(e.key==='Enter'){
+        const i=inp.id.split('-')[1]
+        addComment(i, inp.value)
+        inp.value=''
+      }
+    }
+  })
   
   const editProfileBtn=document.getElementById('editProfileBtn')
   if(editProfileBtn){ editProfileBtn.onclick=()=>{ const nn=prompt('Edit your name:', profileData.name); if(nn!==null && nn.trim()!=='') profileData.name=nn.trim(); const nb=prompt('Edit your bio:', profileData.bio); if(nb!==null && nb.trim()!=='') profileData.bio=nb.trim(); saveProfile(); render() } }
@@ -113,7 +142,6 @@ async function render(){
         reader.onload=(ev)=>{
           const type=file.type.startsWith('video')?'video':'image'
           draftMedia.push({ type, src: ev.target.result })
-          // Preview güncelle
           const grid=document.getElementById('previewGrid')
           const preview=document.getElementById('postPhotoPreview')
           if(grid && preview){
@@ -124,11 +152,7 @@ async function render(){
                 <button data-i="${i}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button>
               </div>`).join('')
             document.querySelectorAll('.removeSingleMedia').forEach(btn=>{
-              btn.onclick=()=>{
-                const idx=parseInt(btn.getAttribute('data-i'))
-                draftMedia.splice(idx,1)
-                render()
-              }
+              btn.onclick=()=>{ const idx=parseInt(btn.getAttribute('data-i')); draftMedia.splice(idx,1); render() }
             })
           }
         }
