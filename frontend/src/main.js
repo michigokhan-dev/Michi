@@ -1,13 +1,38 @@
-// Auto cache buster - no more v=403 needed!
-let posts = [
+let defaultPosts = [
   { text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0 }
 ]
 
-let profileData = {
+let defaultProfile = {
   name: "MICHI User",
   bio: "Luxury mind • Black & Gold soul ✨",
   followers: 342,
   following: 128
+}
+
+// Load from localStorage - so posts don't disappear on refresh
+function loadPosts(){
+  try{
+    const saved = localStorage.getItem('michi_posts')
+    return saved ? JSON.parse(saved) : defaultPosts
+  }catch(e){ return defaultPosts }
+}
+
+function loadProfile(){
+  try{
+    const saved = localStorage.getItem('michi_profile')
+    return saved ? JSON.parse(saved) : defaultProfile
+  }catch(e){ return defaultProfile }
+}
+
+let posts = loadPosts()
+let profileData = loadProfile()
+
+function savePosts(){
+  localStorage.setItem('michi_posts', JSON.stringify(posts))
+}
+
+function saveProfile(){
+  localStorage.setItem('michi_profile', JSON.stringify(profileData))
 }
 
 let Comps = {}
@@ -43,7 +68,7 @@ async function render(){
   document.getElementById('app').innerHTML = `
     ${Comps.Navbar()}
     <div class="pb-20">${content}</div>
-    ${Comps.BottomNav()}
+    ${Comps.BottomNav(page)}
   `
   
   const input = document.getElementById('postInput')
@@ -53,6 +78,7 @@ async function render(){
     const text = input?.value.trim()
     if(!text) return
     posts.unshift({ text, liked: false, likes: 0 })
+    savePosts()
     if(input) input.value = ''
     render()
   }
@@ -67,6 +93,7 @@ async function render(){
       const index = button.getAttribute('data-index')
       posts[index].liked = !posts[index].liked
       posts[index].likes += posts[index].liked ? 1 : -1
+      savePosts()
       render()
     }
   })
@@ -76,6 +103,7 @@ async function render(){
       const index = button.getAttribute('data-index')
       if(confirm('Delete this post?')){
         posts.splice(index, 1)
+        savePosts()
         render()
       }
     }
@@ -87,6 +115,7 @@ async function render(){
       const newText = prompt('Edit your post:', posts[index].text)
       if(newText !== null && newText.trim() !== ''){
         posts[index].text = newText.trim()
+        savePosts()
         render()
       }
     }
@@ -99,6 +128,7 @@ async function render(){
       if(newName !== null && newName.trim() !== '') profileData.name = newName.trim()
       const newBio = prompt('Edit your bio:', profileData.bio)
       if(newBio !== null && newBio.trim() !== '') profileData.bio = newBio.trim()
+      saveProfile()
       render()
     }
   }
