@@ -8,8 +8,17 @@ function loadNotifications(){ try{ const s=localStorage.getItem('michi_notificat
 let posts = loadPosts()
 let profileData = loadProfile()
 let notifications = loadNotifications()
+let draftMedia = [] // Çoklu resim/video draft - kaybolmayacak!
 
-function savePosts(){ localStorage.setItem('michi_posts', JSON.stringify(posts)) }
+function savePosts(){ 
+  try{ localStorage.setItem('michi_posts', JSON.stringify(posts)) } 
+  catch(e){ 
+    // Çok büyükse sadece text kaydet, media memory'de kalır
+    console.log('Storage full, saving text only')
+    const textOnly = posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[]}))
+    try{ localStorage.setItem('michi_posts', JSON.stringify(textOnly)) }catch(e2){}
+  } 
+}
 function saveProfile(){ localStorage.setItem('michi_profile', JSON.stringify(profileData)) }
 function saveNotifications(){ localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }
 
@@ -37,22 +46,32 @@ async function render(){
 
   document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
   
+  // Draft media preview - Feed'e basıp geri gelince kaybolmasın!
+  const previewGrid = document.getElementById('previewGrid')
+  const postPhotoPreview = document.getElementById('postPhotoPreview')
+  if(previewGrid && draftMedia.length > 0){
+    postPhotoPreview.classList.remove('hidden')
+    previewGrid.innerHTML = draftMedia.map((m,i)=>`
+      <div class="relative">
+        ${m.type==='video'?`<video src="${m.src}" class="rounded-xl w-full h-32 object-cover"></video>`:`<img src="${m.src}" class="rounded-xl w-full h-32 object-cover">`}
+        <button data-i="${i}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button>
+      </div>`).join('')
+  }
+  
   const input=document.getElementById('postInput')
   const btn=document.getElementById('shareBtn')
   
-  window.selectedMedia = window.selectedMedia || []
-  
   function addPost(){
     const text=input?.value.trim()
-    const media=window.selectedMedia
-    if(!text && media.length===0) return
-    posts.unshift({ text: text||'', media: [...media], liked: false, likes: 0 })
+    if(!text && draftMedia.length===0) return
+    posts.unshift({ text: text||'', media: [...draftMedia], liked: false, likes: 0 })
     savePosts()
-    window.selectedMedia=[]
+    draftMedia = []
     if(input) input.value=''
-    const preview=document.getElementById('postPhotoPreview')
-    if(preview) preview.classList.add('hidden')
-    document.getElementById('previewGrid').innerHTML=''
+    if(postPhotoPreview) postPhotoPreview.classList.add('hidden')
+    if(previewGrid) previewGrid.innerHTML=''
+    const fileInput=document.getElementById('postPhotoInput')
+    if(fileInput) fileInput.value=''
     render()
   }
   
@@ -86,32 +105,29 @@ async function render(){
   if(postInputAvatar){ const sp=localStorage.getItem('michi_profile_photo')||profileData.photo; if(sp) postInputAvatar.src=sp }
 
   const postPhotoInput=document.getElementById('postPhotoInput')
-  const postPhotoPreview=document.getElementById('postPhotoPreview')
-  const previewGrid=document.getElementById('previewGrid')
-  const removePhotoBtn=document.getElementById('removePhotoBtn')
-
   if(postPhotoInput){
     postPhotoInput.onchange=(e)=>{
       const files=Array.from(e.target.files); if(files.length===0) return
-      window.selectedMedia=window.selectedMedia||[]
-      let loaded=0
       files.forEach(file=>{
         const reader=new FileReader()
         reader.onload=(ev)=>{
           const type=file.type.startsWith('video')?'video':'image'
-          window.selectedMedia.push({ type, src: ev.target.result })
-          loaded++
-          if(loaded===files.length){
-            previewGrid.innerHTML=window.selectedMedia.map((m,i)=>`
+          draftMedia.push({ type, src: ev.target.result })
+          // Preview güncelle
+          const grid=document.getElementById('previewGrid')
+          const preview=document.getElementById('postPhotoPreview')
+          if(grid && preview){
+            preview.classList.remove('hidden')
+            grid.innerHTML=draftMedia.map((m,i)=>`
               <div class="relative">
                 ${m.type==='video'?`<video src="${m.src}" class="rounded-xl w-full h-32 object-cover"></video>`:`<img src="${m.src}" class="rounded-xl w-full h-32 object-cover">`}
                 <button data-i="${i}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button>
               </div>`).join('')
-            postPhotoPreview.classList.remove('hidden')
-            document.querySelectorAll('.removeSingleMedia').forEach(b=>{
-              b.onclick=()=>{ const idx=parseInt(b.getAttribute('data-i')); window.selectedMedia.splice(idx,1); b.closest('.grid').innerHTML=window.selectedMedia.map((m,i2)=>`
-                <div class="relative">${m.type==='video'?`<video src="${m.src}" class="rounded-xl w-full h-32 object-cover"></video>`:`<img src="${m.src}" class="rounded-xl w-full h-32 object-cover">`}
-                <button data-i="${i2}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button></div>`).join(''); if(window.selectedMedia.length===0) postPhotoPreview.classList.add('hidden')
+            document.querySelectorAll('.removeSingleMedia').forEach(btn=>{
+              btn.onclick=()=>{
+                const idx=parseInt(btn.getAttribute('data-i'))
+                draftMedia.splice(idx,1)
+                render()
               }
             })
           }
@@ -121,7 +137,16 @@ async function render(){
     }
   }
 
-  if(removePhotoBtn){ removePhotoBtn.onclick=()=>{ window.selectedMedia=[]; postPhotoPreview.classList.add('hidden'); previewGrid.innerHTML=''; postPhotoInput.value='' } }
+  const removePhotoBtn=document.getElementById('removePhotoBtn')
+  if(removePhotoBtn){ removePhotoBtn.onclick=()=>{ draftMedia=[]; const p=document.getElementById('postPhotoPreview'); const g=document.getElementById('previewGrid'); if(p) p.classList.add('hidden'); if(g) g.innerHTML=''; const fi=document.getElementById('postPhotoInput'); if(fi) fi.value='' } }
+
+  document.querySelectorAll('.removeSingleMedia').forEach(btn=>{
+    btn.onclick=()=>{
+      const idx=parseInt(btn.getAttribute('data-i'))
+      draftMedia.splice(idx,1)
+      render()
+    }
+  })
 
   document.querySelectorAll('.likeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications[i].liked=!notifications[i].liked; notifications[i].likes+=notifications[i].liked?1:-1; saveNotifications(); render() } })
   document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
