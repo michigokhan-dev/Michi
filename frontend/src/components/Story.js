@@ -6,7 +6,7 @@ export function Story(){
         <div class="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 p-0.5">
           <div class="w-full h-full rounded-full bg-black flex items-center justify-center text-yellow-500 font-bold text-xl">+</div>
         </div>
-        <p class="text-xs mt-1 text-zinc-400">Hikaye Ekle</p>
+        <p class="text-xs mt-1 text-zinc-400">Add</p>
       </div>
       <div class="text-center min-w-16">
         <img src="./IMG_3700.jpeg" class="w-14 h-14 rounded-full border-2 border-yellow-500 object-cover">
