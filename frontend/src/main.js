@@ -1,35 +1,9 @@
-let defaultPosts = [
-  { text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0 }
-]
+let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [] }]
+let defaultProfile = { name: "Michi Ayaydin", bio: "Luxury mind • Black & Gold soul ✨", followers: 342, following: 128, photo: null }
 
-let defaultProfile = {
-  name: "Michi Ayaydin",
-  bio: "Luxury mind • Black & Gold soul ✨",
-  followers: 342,
-  following: 128,
-  photo: null
-}
-
-function loadPosts(){
-  try{
-    const saved = localStorage.getItem('michi_posts')
-    return saved ? JSON.parse(saved) : defaultPosts
-  }catch(e){ return defaultPosts }
-}
-
-function loadProfile(){
-  try{
-    const saved = localStorage.getItem('michi_profile')
-    return saved ? JSON.parse(saved) : defaultProfile
-  }catch(e){ return defaultProfile }
-}
-
-function loadNotifications(){
-  try{
-    const saved = localStorage.getItem('michi_notifications')
-    return saved ? JSON.parse(saved) : []
-  }catch(e){ return [] }
-}
+function loadPosts(){ try{ const s=localStorage.getItem('michi_posts'); return s?JSON.parse(s):defaultPosts }catch(e){ return defaultPosts } }
+function loadProfile(){ try{ const s=localStorage.getItem('michi_profile'); return s?JSON.parse(s):defaultProfile }catch(e){ return defaultProfile } }
+function loadNotifications(){ try{ const s=localStorage.getItem('michi_notifications'); return s?JSON.parse(s):[] }catch(e){ return [] } }
 
 let posts = loadPosts()
 let profileData = loadProfile()
@@ -40,9 +14,8 @@ function saveProfile(){ localStorage.setItem('michi_profile', JSON.stringify(pro
 function saveNotifications(){ localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }
 
 let Comps = {}
-
 async function load(){
-  const t = Date.now()
+  const t=Date.now()
   Comps.Navbar = (await import(`./components/Navbar.js?t=${t}`)).Navbar
   Comps.SearchBar = (await import(`./components/SearchBar.js?t=${t}`)).SearchBar
   Comps.PostInput = (await import(`./components/PostInput.js?t=${t}`)).PostInput
@@ -50,188 +23,108 @@ async function load(){
   Comps.PostList = (await import(`./components/Post.js?t=${t}`)).PostList
   Comps.Profile = (await import(`./pages/Profile.js?t=${t}`)).Profile
   Comps.BottomNav = (await import(`./components/BottomNav.js?t=${t}`)).BottomNav
-  Comps.NotificationList = (await import(`./components/Notification.js?t=${t}`)).NotificationList
+  Comps.NotificationsPage = (await import(`./pages/Notifications.js?t=${t}`)).NotificationsPage
 }
 
 async function render(){
   if(!Comps.Navbar) await load()
-  
   const page = location.hash.replace('#','') || 'feed'
   
   let content = ''
-  if(page === 'profile'){
-    content = Comps.Profile(posts, profileData)
-  } else {
-    content = `
-      ${Comps.SearchBar()}
-      ${Comps.NotificationList(notifications)}
-      ${Comps.Story()}
-      ${Comps.PostInput()}
-      ${Comps.PostList(posts)}
-    `
-  }
+  if(page === 'profile'){ content = Comps.Profile(posts, profileData) }
+  else if(page === 'notifications'){ content = Comps.NotificationsPage(notifications) }
+  else { content = `${Comps.SearchBar()}${Comps.Story()}${Comps.PostInput()}${Comps.PostList(posts)}` }
 
-  document.getElementById('app').innerHTML = `
-    ${Comps.Navbar(notifications.length)}
-    <div class="pb-20">${content}</div>
-    ${Comps.BottomNav(page)}
-  `
+  document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
   
-  const input = document.getElementById('postInput')
-  const btn = document.getElementById('shareBtn')
+  const input=document.getElementById('postInput')
+  const btn=document.getElementById('shareBtn')
+  
+  window.selectedMedia = window.selectedMedia || []
   
   function addPost(){
-    const text = input?.value.trim()
-    const photo = window.selectedPostPhoto
-    if(!text && !photo) return
-    posts.unshift({ text: text || '', photo: photo || null, liked: false, likes: 0 })
+    const text=input?.value.trim()
+    const media=window.selectedMedia
+    if(!text && media.length===0) return
+    posts.unshift({ text: text||'', media: [...media], liked: false, likes: 0 })
     savePosts()
-    window.selectedPostPhoto = null
-    if(input) input.value = ''
-    const preview = document.getElementById('postPhotoPreview')
+    window.selectedMedia=[]
+    if(input) input.value=''
+    const preview=document.getElementById('postPhotoPreview')
     if(preview) preview.classList.add('hidden')
+    document.getElementById('previewGrid').innerHTML=''
     render()
   }
   
-  if(btn && input){
-    btn.onclick = addPost
-    input.onkeydown = (e) => { if(e.key === 'Enter') addPost() }
-  }
+  if(btn && input){ btn.onclick=addPost; input.onkeydown=(e)=>{ if(e.key==='Enter') addPost() } }
   
-  document.querySelectorAll('.likeBtn').forEach(button => {
-    button.onclick = () => {
-      const index = button.getAttribute('data-index')
-      posts[index].liked = !posts[index].liked
-      posts[index].likes += posts[index].liked ? 1 : -1
-      savePosts()
-      render()
-    }
-  })
+  document.querySelectorAll('.likeBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); posts[i].liked=!posts[i].liked; posts[i].likes+=posts[i].liked?1:-1; savePosts(); render() } })
+  document.querySelectorAll('.deletePostBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); if(confirm('Delete this post?')){ posts.splice(i,1); savePosts(); render() } } })
+  document.querySelectorAll('.editPostBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); const nt=prompt('Edit your post:', posts[i].text); if(nt!==null && nt.trim()!==''){ posts[i].text=nt.trim(); savePosts(); render() } } })
+  
+  const editProfileBtn=document.getElementById('editProfileBtn')
+  if(editProfileBtn){ editProfileBtn.onclick=()=>{ const nn=prompt('Edit your name:', profileData.name); if(nn!==null && nn.trim()!=='') profileData.name=nn.trim(); const nb=prompt('Edit your bio:', profileData.bio); if(nb!==null && nb.trim()!=='') profileData.bio=nb.trim(); saveProfile(); render() } }
 
-  document.querySelectorAll('.deletePostBtn').forEach(button => {
-    button.onclick = () => {
-      const index = button.getAttribute('data-index')
-      if(confirm('Delete this post?')){
-        posts.splice(index, 1)
-        savePosts()
-        render()
-      }
-    }
-  })
-
-  document.querySelectorAll('.editPostBtn').forEach(button => {
-    button.onclick = () => {
-      const index = button.getAttribute('data-index')
-      const newText = prompt('Edit your post:', posts[index].text)
-      if(newText !== null && newText.trim() !== ''){
-        posts[index].text = newText.trim()
-        savePosts()
-        render()
-      }
-    }
-  })
-
-  const editProfileBtn = document.getElementById('editProfileBtn')
-  if(editProfileBtn){
-    editProfileBtn.onclick = () => {
-      const newName = prompt('Edit your name:', profileData.name)
-      if(newName !== null && newName.trim() !== '') profileData.name = newName.trim()
-      const newBio = prompt('Edit your bio:', profileData.bio)
-      if(newBio !== null && newBio.trim() !== '') profileData.bio = newBio.trim()
-      saveProfile()
-      render()
-    }
-  }
-
-  // Profile photo change -> Notification to friends
-  const changePhotoBtn = document.getElementById('changePhotoBtn')
-  const profilePhotoInput = document.getElementById('profilePhotoInput')
+  const changePhotoBtn=document.getElementById('changePhotoBtn')
+  const profilePhotoInput=document.getElementById('profilePhotoInput')
   if(changePhotoBtn && profilePhotoInput){
-    changePhotoBtn.onclick = () => profilePhotoInput.click()
-    profilePhotoInput.onchange = (e) => {
-      const file = e.target.files[0]
-      if(!file) return
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const newPhoto = ev.target.result
-        profileData.photo = newPhoto
-        saveProfile()
-        localStorage.setItem('michi_profile_photo', newPhoto)
-        
-        // Create notification for friends
-        const notif = {
-          id: Date.now(),
-          userName: profileData.name,
-          photo: newPhoto,
-          text: `${profileData.name} changed profile photo`,
-          likes: 0,
-          liked: false,
-          time: new Date().toISOString()
-        }
-        notifications.unshift(notif)
-        saveNotifications()
-        render()
-        
-        // Show toast
-        alert(`Notification sent to friends: ${profileData.name} changed profile photo`)
+    changePhotoBtn.onclick=()=>profilePhotoInput.click()
+    profilePhotoInput.onchange=(e)=>{
+      const file=e.target.files[0]; if(!file) return
+      const reader=new FileReader()
+      reader.onload=(ev)=>{
+        const newPhoto=ev.target.result
+        profileData.photo=newPhoto; saveProfile(); localStorage.setItem('michi_profile_photo', newPhoto)
+        const notif={ id: Date.now(), userName: profileData.name, photo: newPhoto, likes: 0, liked: false }
+        notifications.unshift(notif); saveNotifications(); render()
       }
       reader.readAsDataURL(file)
     }
   }
 
-  const postInputAvatar = document.getElementById('postInputAvatar')
-  if(postInputAvatar){
-    const savedPhoto = localStorage.getItem('michi_profile_photo') || profileData.photo
-    if(savedPhoto) postInputAvatar.src = savedPhoto
-  }
+  const postInputAvatar=document.getElementById('postInputAvatar')
+  if(postInputAvatar){ const sp=localStorage.getItem('michi_profile_photo')||profileData.photo; if(sp) postInputAvatar.src=sp }
 
-  // Post photo upload
-  const postPhotoInput = document.getElementById('postPhotoInput')
-  const postPhotoPreview = document.getElementById('postPhotoPreview')
-  const previewImg = document.getElementById('previewImg')
-  const removePhotoBtn = document.getElementById('removePhotoBtn')
+  const postPhotoInput=document.getElementById('postPhotoInput')
+  const postPhotoPreview=document.getElementById('postPhotoPreview')
+  const previewGrid=document.getElementById('previewGrid')
+  const removePhotoBtn=document.getElementById('removePhotoBtn')
 
   if(postPhotoInput){
-    postPhotoInput.onchange = (e) => {
-      const file = e.target.files[0]
-      if(!file) return
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        window.selectedPostPhoto = ev.target.result
-        previewImg.src = ev.target.result
-        postPhotoPreview.classList.remove('hidden')
-      }
-      reader.readAsDataURL(file)
+    postPhotoInput.onchange=(e)=>{
+      const files=Array.from(e.target.files); if(files.length===0) return
+      window.selectedMedia=window.selectedMedia||[]
+      let loaded=0
+      files.forEach(file=>{
+        const reader=new FileReader()
+        reader.onload=(ev)=>{
+          const type=file.type.startsWith('video')?'video':'image'
+          window.selectedMedia.push({ type, src: ev.target.result })
+          loaded++
+          if(loaded===files.length){
+            previewGrid.innerHTML=window.selectedMedia.map((m,i)=>`
+              <div class="relative">
+                ${m.type==='video'?`<video src="${m.src}" class="rounded-xl w-full h-32 object-cover"></video>`:`<img src="${m.src}" class="rounded-xl w-full h-32 object-cover">`}
+                <button data-i="${i}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button>
+              </div>`).join('')
+            postPhotoPreview.classList.remove('hidden')
+            document.querySelectorAll('.removeSingleMedia').forEach(b=>{
+              b.onclick=()=>{ const idx=parseInt(b.getAttribute('data-i')); window.selectedMedia.splice(idx,1); b.closest('.grid').innerHTML=window.selectedMedia.map((m,i2)=>`
+                <div class="relative">${m.type==='video'?`<video src="${m.src}" class="rounded-xl w-full h-32 object-cover"></video>`:`<img src="${m.src}" class="rounded-xl w-full h-32 object-cover">`}
+                <button data-i="${i2}" class="removeSingleMedia absolute top-1 right-1 bg-black/70 text-white w-5 h-5 rounded-full text-xs">✕</button></div>`).join(''); if(window.selectedMedia.length===0) postPhotoPreview.classList.add('hidden')
+              }
+            })
+          }
+        }
+        reader.readAsDataURL(file)
+      })
     }
   }
 
-  if(removePhotoBtn){
-    removePhotoBtn.onclick = () => {
-      window.selectedPostPhoto = null
-      postPhotoPreview.classList.add('hidden')
-      postPhotoInput.value = ''
-    }
-  }
+  if(removePhotoBtn){ removePhotoBtn.onclick=()=>{ window.selectedMedia=[]; postPhotoPreview.classList.add('hidden'); previewGrid.innerHTML=''; postPhotoInput.value='' } }
 
-  // Notification actions
-  document.querySelectorAll('.likeNotifBtn').forEach(button => {
-    button.onclick = () => {
-      const index = button.getAttribute('data-index')
-      notifications[index].liked = !notifications[index].liked
-      notifications[index].likes += notifications[index].liked ? 1 : -1
-      saveNotifications()
-      render()
-    }
-  })
-
-  document.querySelectorAll('.closeNotifBtn').forEach(button => {
-    button.onclick = () => {
-      const index = button.getAttribute('data-index')
-      notifications.splice(index, 1)
-      saveNotifications()
-      render()
-    }
-  })
+  document.querySelectorAll('.likeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications[i].liked=!notifications[i].liked; notifications[i].likes+=notifications[i].liked?1:-1; saveNotifications(); render() } })
+  document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
 }
 
 window.addEventListener('hashchange', render)
