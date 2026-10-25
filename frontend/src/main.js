@@ -17,9 +17,10 @@ function render(){
     ${PostList(posts)}
   `
   
-  // Post button çalışsın
   const input = document.getElementById('postInput')
   const btn = document.getElementById('shareBtn')
+  
+  if(!input || !btn) return
   
   function addPost(){
     const text = input.value.trim()
