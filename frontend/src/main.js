@@ -3,13 +3,13 @@ let defaultPosts = [
 ]
 
 let defaultProfile = {
-  name: "MICHI User",
+  name: "Michi Ayaydin",
   bio: "Luxury mind • Black & Gold soul ✨",
   followers: 342,
-  following: 128
+  following: 128,
+  photo: null
 }
 
-// Load from localStorage - so posts don't disappear on refresh
 function loadPosts(){
   try{
     const saved = localStorage.getItem('michi_posts')
@@ -24,16 +24,20 @@ function loadProfile(){
   }catch(e){ return defaultProfile }
 }
 
+function loadNotifications(){
+  try{
+    const saved = localStorage.getItem('michi_notifications')
+    return saved ? JSON.parse(saved) : []
+  }catch(e){ return [] }
+}
+
 let posts = loadPosts()
 let profileData = loadProfile()
+let notifications = loadNotifications()
 
-function savePosts(){
-  localStorage.setItem('michi_posts', JSON.stringify(posts))
-}
-
-function saveProfile(){
-  localStorage.setItem('michi_profile', JSON.stringify(profileData))
-}
+function savePosts(){ localStorage.setItem('michi_posts', JSON.stringify(posts)) }
+function saveProfile(){ localStorage.setItem('michi_profile', JSON.stringify(profileData)) }
+function saveNotifications(){ localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }
 
 let Comps = {}
 
@@ -46,6 +50,7 @@ async function load(){
   Comps.PostList = (await import(`./components/Post.js?t=${t}`)).PostList
   Comps.Profile = (await import(`./pages/Profile.js?t=${t}`)).Profile
   Comps.BottomNav = (await import(`./components/BottomNav.js?t=${t}`)).BottomNav
+  Comps.NotificationList = (await import(`./components/Notification.js?t=${t}`)).NotificationList
 }
 
 async function render(){
@@ -59,6 +64,7 @@ async function render(){
   } else {
     content = `
       ${Comps.SearchBar()}
+      ${Comps.NotificationList(notifications)}
       ${Comps.Story()}
       ${Comps.PostInput()}
       ${Comps.PostList(posts)}
@@ -66,7 +72,7 @@ async function render(){
   }
 
   document.getElementById('app').innerHTML = `
-    ${Comps.Navbar()}
+    ${Comps.Navbar(notifications.length)}
     <div class="pb-20">${content}</div>
     ${Comps.BottomNav(page)}
   `
@@ -76,10 +82,14 @@ async function render(){
   
   function addPost(){
     const text = input?.value.trim()
-    if(!text) return
-    posts.unshift({ text, liked: false, likes: 0 })
+    const photo = window.selectedPostPhoto
+    if(!text && !photo) return
+    posts.unshift({ text: text || '', photo: photo || null, liked: false, likes: 0 })
     savePosts()
+    window.selectedPostPhoto = null
     if(input) input.value = ''
+    const preview = document.getElementById('postPhotoPreview')
+    if(preview) preview.classList.add('hidden')
     render()
   }
   
@@ -132,7 +142,8 @@ async function render(){
       render()
     }
   }
-    // Profile photo upload
+
+  // Profile photo change -> Notification to friends
   const changePhotoBtn = document.getElementById('changePhotoBtn')
   const profilePhotoInput = document.getElementById('profilePhotoInput')
   if(changePhotoBtn && profilePhotoInput){
@@ -142,24 +153,39 @@ async function render(){
       if(!file) return
       const reader = new FileReader()
       reader.onload = (ev) => {
-        profileData.photo = ev.target.result
-        localStorage.setItem('michi_profile', JSON.stringify(profileData))
-        localStorage.setItem('michi_profile_photo', ev.target.result)
+        const newPhoto = ev.target.result
+        profileData.photo = newPhoto
+        saveProfile()
+        localStorage.setItem('michi_profile_photo', newPhoto)
+        
+        // Create notification for friends
+        const notif = {
+          id: Date.now(),
+          userName: profileData.name,
+          photo: newPhoto,
+          text: `${profileData.name} changed profile photo`,
+          likes: 0,
+          liked: false,
+          time: new Date().toISOString()
+        }
+        notifications.unshift(notif)
+        saveNotifications()
         render()
+        
+        // Show toast
+        alert(`Notification sent to friends: ${profileData.name} changed profile photo`)
       }
       reader.readAsDataURL(file)
     }
   }
 
-  // Update post input avatar
   const postInputAvatar = document.getElementById('postInputAvatar')
   if(postInputAvatar){
-    const savedPhoto = localStorage.getItem('michi_profile_photo')
+    const savedPhoto = localStorage.getItem('michi_profile_photo') || profileData.photo
     if(savedPhoto) postInputAvatar.src = savedPhoto
   }
 
   // Post photo upload
-  let selectedPostPhoto = window.selectedPostPhoto || null
   const postPhotoInput = document.getElementById('postPhotoInput')
   const postPhotoPreview = document.getElementById('postPhotoPreview')
   const previewImg = document.getElementById('previewImg')
@@ -171,9 +197,8 @@ async function render(){
       if(!file) return
       const reader = new FileReader()
       reader.onload = (ev) => {
-        selectedPostPhoto = ev.target.result
-        window.selectedPostPhoto = selectedPostPhoto
-        previewImg.src = selectedPostPhoto
+        window.selectedPostPhoto = ev.target.result
+        previewImg.src = ev.target.result
         postPhotoPreview.classList.remove('hidden')
       }
       reader.readAsDataURL(file)
@@ -182,28 +207,31 @@ async function render(){
 
   if(removePhotoBtn){
     removePhotoBtn.onclick = () => {
-      selectedPostPhoto = null
       window.selectedPostPhoto = null
       postPhotoPreview.classList.add('hidden')
       postPhotoInput.value = ''
     }
   }
 
-  // Override addPost to include photo
-  const originalAddPost = addPost
-  window.addPostWithPhoto = () => {
-    const text = input?.value.trim()
-    if(!text && !selectedPostPhoto) return
-    posts.unshift({ text: text || '', photo: selectedPostPhoto, liked: false, likes: 0 })
-    savePosts()
-    selectedPostPhoto = null
-    window.selectedPostPhoto = null
-    if(input) input.value = ''
-    render()
-  }
-  if(btn){
-    btn.onclick = window.addPostWithPhoto
-  }
+  // Notification actions
+  document.querySelectorAll('.likeNotifBtn').forEach(button => {
+    button.onclick = () => {
+      const index = button.getAttribute('data-index')
+      notifications[index].liked = !notifications[index].liked
+      notifications[index].likes += notifications[index].liked ? 1 : -1
+      saveNotifications()
+      render()
+    }
+  })
+
+  document.querySelectorAll('.closeNotifBtn').forEach(button => {
+    button.onclick = () => {
+      const index = button.getAttribute('data-index')
+      notifications.splice(index, 1)
+      saveNotifications()
+      render()
+    }
+  })
 }
 
 window.addEventListener('hashchange', render)
