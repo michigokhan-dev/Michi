@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MICHI - Luxury Social</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
 <body class="bg-black text-white">
 <div id="app"></div>
-<script type="module" src="./frontend/src/main.js?v=302"></script>
+<script type="module">
+  // Auto cache breaker - loads latest version every time
+  import(`./frontend/src/main.js?t=${Date.now()}`)
+</script>
 </body>
 </html>
