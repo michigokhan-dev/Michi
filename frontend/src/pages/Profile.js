@@ -28,10 +28,25 @@ export function Profile(posts, profileData){
 
     <div class="px-3 pb-3">
       <h2 class="font-bold mb-3 text-sm">Your Posts</h2>
-      ${posts.map((post, index) => `
+      ${posts.map((post, index) => {
+        let mediaHtml = ''
+        if(post.media && post.media.length > 0){
+          mediaHtml = `<div class="mt-3 grid ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2">` +
+            post.media.map(m => {
+              if(m.type === 'video'){
+                return `<video src="${m.src}" controls class="rounded-xl w-full max-h-80 bg-black"></video>`
+              } else {
+                return `<img src="${m.src}" class="rounded-xl w-full max-h-80 object-cover">`
+              }
+            }).join('') + `</div>`
+        } else if(post.photo){
+          mediaHtml = `<img src="${post.photo}" class="mt-3 rounded-xl w-full max-h-80 object-cover">`
+        }
+        
+        return `
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3">
-          <p class="text-sm">${post.text}</p>
-          ${post.photo ? `<img src="${post.photo}" class="mt-3 rounded-xl w-full max-h-80 object-cover">` : ''}
+          <p class="text-sm">${post.text || ''}</p>
+          ${mediaHtml}
           <div class="flex justify-between items-center mt-3">
             <p class="text-xs text-zinc-500">${post.likes || 0} likes • Now</p>
             <div class="flex gap-3 text-xs">
@@ -39,8 +54,8 @@ export function Profile(posts, profileData){
               <button data-index="${index}" class="deletePostBtn text-zinc-400 hover:text-red-500">Delete</button>
             </div>
           </div>
-        </div>
-      `).join('')}
+        </div>`
+      }).join('')}
     </div>
   </div>`
 }
