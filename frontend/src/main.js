@@ -132,6 +132,78 @@ async function render(){
       render()
     }
   }
+    // Profile photo upload
+  const changePhotoBtn = document.getElementById('changePhotoBtn')
+  const profilePhotoInput = document.getElementById('profilePhotoInput')
+  if(changePhotoBtn && profilePhotoInput){
+    changePhotoBtn.onclick = () => profilePhotoInput.click()
+    profilePhotoInput.onchange = (e) => {
+      const file = e.target.files[0]
+      if(!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        profileData.photo = ev.target.result
+        localStorage.setItem('michi_profile', JSON.stringify(profileData))
+        localStorage.setItem('michi_profile_photo', ev.target.result)
+        render()
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Update post input avatar
+  const postInputAvatar = document.getElementById('postInputAvatar')
+  if(postInputAvatar){
+    const savedPhoto = localStorage.getItem('michi_profile_photo')
+    if(savedPhoto) postInputAvatar.src = savedPhoto
+  }
+
+  // Post photo upload
+  let selectedPostPhoto = window.selectedPostPhoto || null
+  const postPhotoInput = document.getElementById('postPhotoInput')
+  const postPhotoPreview = document.getElementById('postPhotoPreview')
+  const previewImg = document.getElementById('previewImg')
+  const removePhotoBtn = document.getElementById('removePhotoBtn')
+
+  if(postPhotoInput){
+    postPhotoInput.onchange = (e) => {
+      const file = e.target.files[0]
+      if(!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        selectedPostPhoto = ev.target.result
+        window.selectedPostPhoto = selectedPostPhoto
+        previewImg.src = selectedPostPhoto
+        postPhotoPreview.classList.remove('hidden')
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  if(removePhotoBtn){
+    removePhotoBtn.onclick = () => {
+      selectedPostPhoto = null
+      window.selectedPostPhoto = null
+      postPhotoPreview.classList.add('hidden')
+      postPhotoInput.value = ''
+    }
+  }
+
+  // Override addPost to include photo
+  const originalAddPost = addPost
+  window.addPostWithPhoto = () => {
+    const text = input?.value.trim()
+    if(!text && !selectedPostPhoto) return
+    posts.unshift({ text: text || '', photo: selectedPostPhoto, liked: false, likes: 0 })
+    savePosts()
+    selectedPostPhoto = null
+    window.selectedPostPhoto = null
+    if(input) input.value = ''
+    render()
+  }
+  if(btn){
+    btn.onclick = window.addPostWithPhoto
+  }
 }
 
 window.addEventListener('hashchange', render)
