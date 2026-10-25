@@ -13,7 +13,7 @@ export function Post(){
         <span class="text-zinc-500">•••</span>
       </div>
       <p class="mt-3 text-sm">MICHI'ye hoşgeldin - Siyah background, Gold ruh. Burası lüks sosyal ağ. ✨ #MICHI</p>
-      <img src="../../IMG_3700.jpeg" class="mt-3 w-full h-64 object-contain bg-black rounded-xl border border-zinc-800">
+      <img src="./IMG_3700.jpeg" class="mt-3 w-full h-64 object-contain bg-black rounded-xl border border-zinc-800">
       <div class="flex justify-between mt-3 text-sm text-zinc-400 border-t border-zinc-800 pt-3">
         <span>♡ 342 Beğeni</span><span>💬 28 Yorum</span><span>↗ Paylaş</span>
       </div>
