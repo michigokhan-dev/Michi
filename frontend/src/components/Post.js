@@ -3,11 +3,23 @@ export function PostList(posts){
     let mediaHtml = ''
     if(post.media && post.media.length > 0){
       mediaHtml = `<div class="mt-3 grid ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2">` +
-        post.media.map(m => {
+        post.media.map((m, mi) => {
+          // her resme ayrı like/comment için default
+          const mLikes = m.likes || 0
+          const mComments = m.comments ? m.comments.length : 0
+          const mLiked = m.liked ? '♥' : '♡'
+          
           if(m.type === 'video'){
-            return `<video src="${m.src}" controls class="rounded-xl w-full max-h-96 bg-black"></video>`
+            return `<div class="relative cursor-pointer group" onclick="openMediaGallery(${index}, ${mi})">
+              <video src="${m.src}" class="rounded-xl w-full max-h-96 bg-black pointer-events-none"></video>
+              <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2.5 py-1 rounded-full">${mLiked} ${mLikes} • 💬 ${mComments}</div>
+              <div class="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-xl transition"></div>
+            </div>`
           } else {
-            return `<img src="${m.src}" class="rounded-xl w-full max-h-96 object-cover">`
+            return `<div class="relative cursor-pointer group" onclick="openMediaGallery(${index}, ${mi})">
+              <img src="${m.src}" class="rounded-xl w-full max-h-96 object-cover group-hover:brightness-110 transition">
+              <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2.5 py-1 rounded-full">${mLiked} ${mLikes} • 💬 ${mComments}</div>
+            </div>`
           }
         }).join('') + `</div>`
     }
