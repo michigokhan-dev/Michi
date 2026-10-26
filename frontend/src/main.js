@@ -241,6 +241,66 @@ async function render(){
   document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
 }
 
+// GALERIYI AC - TIKLAYINCA DIKEY FULL EKRAN
+window.openMediaGallery = (postIndex, mediaIndex)=>{
+  const post = posts[postIndex]
+  const content = document.getElementById('galleryContent')
+  const gallery = document.getElementById('mediaGallery')
+  
+  content.innerHTML = post.media.map((m, mi)=>`
+    <div class="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800" id="g-item-${mi}">
+      ${m.type==='video'
+        ? `<video src="${m.src}" controls class="w-full max-h-[75vh] object-contain bg-black"></video>`
+        : `<img src="${m.src}" class="w-full max-h-[75vh] object-contain bg-black">`
+      }
+      <div class="p-4">
+        <div class="flex gap-6 text-sm text-white">
+          <button class="likeMediaBtn font-semibold" data-post="${postIndex}" data-media="${mi}">${m.liked?'♥':'♡'} ${m.likes||0} Like</button>
+          <button class="text-gray-400">💬 ${m.comments?.length||0} Yorum</button>
+        </div>
+        <div class="mt-3 space-y-2 text-sm text-white">
+          ${(m.comments||[]).map(c=>`<div><span class="font-bold">${c.user}</span> ${c.text}</div>`).join('')}
+        </div>
+        <div class="mt-4 flex gap-2">
+          <input id="mComment-${postIndex}-${mi}" placeholder="Yorum yaz..." class="flex-1 bg-black border border-zinc-700 rounded-full px-4 py-2 text-sm text-white">
+          <button class="postMediaCommentBtn bg-[#D4AF37] text-black px-5 rounded-full text-sm font-bold" data-post="${postIndex}" data-media="${mi}">Gönder</button>
+        </div>
+      </div>
+    </div>
+  `).join('')
+  
+  gallery.classList.remove('hidden')
+  document.body.style.overflow='hidden'
+  setTimeout(()=> document.getElementById(`g-item-${mediaIndex}`)?.scrollIntoView({behavior:'smooth', block:'center'}), 150)
+  
+  // Like ve comment eventleri
+  content.querySelectorAll('.likeMediaBtn').forEach(b=>{
+    b.onclick=()=>{
+      const pi=b.dataset.post, mi=b.dataset.media
+      const media = posts[pi].media[mi]
+      media.liked=!media.liked
+      media.likes=(media.likes||0)+(media.liked?1:-1)
+      savePosts(); openMediaGallery(pi, mi); render()
+    }
+  })
+  content.querySelectorAll('.postMediaCommentBtn').forEach(b=>{
+    b.onclick=()=>{
+      const pi=b.dataset.post, mi=b.dataset.media
+      const inp=document.getElementById(`mComment-${pi}-${mi}`)
+      if(!inp.value.trim()) return
+      const media = posts[pi].media[mi]
+      if(!media.comments) media.comments=[]
+      media.comments.push({ user: profileData.name, text: inp.value.trim() })
+      savePosts(); openMediaGallery(pi, mi); render()
+    }
+  })
+}
+
+document.getElementById('closeGallery').onclick=()=>{
+  document.getElementById('mediaGallery').classList.add('hidden')
+  document.body.style.overflow='auto'
+}
+
 loadAll().then(()=>{
   load().then(render)
 })
