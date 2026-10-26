@@ -1,18 +1,76 @@
 let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [], comments: [] }]
 let defaultProfile = { name: "Michi Ayaydin", bio: "Luxury mind • Black & Gold soul ✨", followers: 342, following: 128, photo: null }
 
-function loadPosts(){ try{ const s=localStorage.getItem('michi_posts'); return s?JSON.parse(s):defaultPosts }catch(e){ return defaultPosts } }
-function loadProfile(){ try{ const s=localStorage.getItem('michi_profile'); return s?JSON.parse(s):defaultProfile }catch(e){ return defaultProfile } }
-function loadNotifications(){ try{ const s=localStorage.getItem('michi_notifications'); return s?JSON.parse(s):[] }catch(e){ return [] } }
-
-let posts = loadPosts()
-let profileData = loadProfile()
-let notifications = loadNotifications()
+let posts = [...defaultPosts]
+let profileData = {...defaultProfile}
+let notifications = []
 let draftMedia = []
 
-function savePosts(){ try{ localStorage.setItem('michi_posts', JSON.stringify(posts)) }catch(e){ const textOnly=posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[], comments:p.comments||[] })); try{ localStorage.setItem('michi_posts', JSON.stringify(textOnly)) }catch(e2){} } }
-function saveProfile(){ localStorage.setItem('michi_profile', JSON.stringify(profileData)) }
-function saveNotifications(){ localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }
+// === SIKISTIRMA - OTOMATIK ===
+function compressImage(dataUrl, maxW=800, quality=0.7){
+  return new Promise((resolve)=>{
+    const img = new Image()
+    img.onload = ()=>{
+      let w = img.width, h = img.height
+      if(w > maxW){ h = h * maxW / w; w = maxW }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.src = dataUrl
+  })
+}
+
+// === INDEXEDDB - 50MB YER ===
+const DB_NAME = 'michi_db'
+function getDB(){
+  return new Promise((res, rej)=>{
+    const req = indexedDB.open(DB_NAME, 1)
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore('kv') }
+    req.onsuccess = ()=> res(req.result)
+    req.onerror = ()=> rej(req.error)
+  })
+}
+async function idbSet(k, v){
+  const db = await getDB()
+  return new Promise((res, rej)=>{
+    const tx = db.transaction('kv','readwrite')
+    tx.objectStore('kv').put(v, k)
+    tx.oncomplete = ()=> res()
+    tx.onerror = ()=> rej(tx.error)
+  })
+}
+async function idbGet(k){
+  const db = await getDB()
+  return new Promise((res, rej)=>{
+    const tx = db.transaction('kv','readonly')
+    const req = tx.objectStore('kv').get(k)
+    req.onsuccess = ()=> res(req.result)
+    req.onerror = ()=> rej(req.error)
+  })
+}
+
+async function savePosts(){ try{ await idbSet('michi_posts', posts); localStorage.setItem('michi_posts_backup', JSON.stringify(posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[], comments:p.comments||[]})))) }catch(e){} }
+async function saveProfile(){ try{ await idbSet('michi_profile', profileData); localStorage.setItem('michi_profile', JSON.stringify(profileData)) }catch(e){} }
+async function saveNotifications(){ try{ await idbSet('michi_notifications', notifications); localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }catch(e){} }
+
+async function loadAll(){
+  try{
+    const p = await idbGet('michi_posts')
+    const pr = await idbGet('michi_profile')
+    const n = await idbGet('michi_notifications')
+    if(p) posts = p
+    else { const s=localStorage.getItem('michi_posts'); if(s) posts = JSON.parse(s) }
+    if(pr) profileData = pr
+    else { const s=localStorage.getItem('michi_profile'); if(s) profileData = JSON.parse(s) }
+    if(n) notifications = n
+    else { const s=localStorage.getItem('michi_notifications'); if(s) notifications = JSON.parse(s) }
+  }catch(e){
+    try{ const s=localStorage.getItem('michi_posts'); if(s) posts = JSON.parse(s) }catch{}
+  }
+}
 
 let Comps = {}
 async function load(){
@@ -120,8 +178,10 @@ async function render(){
     profilePhotoInput.onchange=(e)=>{
       const file=e.target.files[0]; if(!file) return
       const reader=new FileReader()
-      reader.onload=(ev)=>{
-        const newPhoto=ev.target.result
+      reader.onload=async (ev)=>{
+        let newPhoto=ev.target.result
+        // OTOMATIK SIKISTIRMA
+        newPhoto = await compressImage(newPhoto, 400, 0.8)
         profileData.photo=newPhoto; saveProfile(); localStorage.setItem('michi_profile_photo', newPhoto)
         const notif={ id: Date.now(), userName: profileData.name, photo: newPhoto, likes: 0, liked: false }
         notifications.unshift(notif); saveNotifications(); render()
@@ -139,9 +199,14 @@ async function render(){
       const files=Array.from(e.target.files); if(files.length===0) return
       files.forEach(file=>{
         const reader=new FileReader()
-        reader.onload=(ev)=>{
+        reader.onload=async (ev)=>{
+          let src = ev.target.result
           const type=file.type.startsWith('video')?'video':'image'
-          draftMedia.push({ type, src: ev.target.result })
+          // OTOMATIK SIKISTIRMA - user 5MB atsa 200KB oluyor
+          if(type==='image'){
+            src = await compressImage(src, 800, 0.7)
+          }
+          draftMedia.push({ type, src })
           const grid=document.getElementById('previewGrid')
           const preview=document.getElementById('postPhotoPreview')
           if(grid && preview){
@@ -176,5 +241,7 @@ async function render(){
   document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
 }
 
+loadAll().then(()=>{
+  load().then(render)
+})
 window.addEventListener('hashchange', render)
-render()
