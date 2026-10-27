@@ -379,6 +379,59 @@ if (authButton) {
     }
   })
 
+    // Mark one notification as read
+  document.querySelectorAll('.markNotificationRead').forEach(button => {
+    button.onclick = async (event) => {
+      event.stopPropagation();
+
+      const notificationId = button.dataset.id;
+
+      if (!michiAuthSession?.user) {
+        window.location.href = './signin.html';
+        return;
+      }
+
+      const { error } = await michiSupabase
+        .from('Notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
+        .eq('user_id', michiAuthSession.user.id);
+
+      if (error) {
+        console.error('Mark notification read error:', error);
+        alert('Could not update notification. Please try again.');
+        return;
+      }
+
+      await loadSupabaseNotifications();
+      render();
+    };
+  });
+
+  // Mark all notifications as read
+  const markAllButton = document.getElementById('markAllNotificationsRead');
+
+  if (markAllButton) {
+    markAllButton.onclick = async () => {
+      if (!michiAuthSession?.user) return;
+
+      const { error } = await michiSupabase
+        .from('Notifications')
+        .update({ is_read: true })
+        .eq('user_id', michiAuthSession.user.id)
+        .eq('is_read', false);
+
+      if (error) {
+        console.error('Mark all notifications read error:', error);
+        alert('Could not update notifications. Please try again.');
+        return;
+      }
+
+      await loadSupabaseNotifications();
+      render();
+    };
+  }
+
   document.querySelectorAll('.likeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications[i].liked=!notifications[i].liked; notifications[i].likes+=notifications[i].liked?1:-1; saveNotifications(); render() } })
   document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
 }
