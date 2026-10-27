@@ -184,7 +184,53 @@ async function idbGet(k){
   })
 }
 
-async function savePosts(){ try{ await idbSet('michi_posts', posts); localStorage.setItem('michi_posts_backup', JSON.stringify(posts.map(p=>({text:p.text, liked:p.liked, likes:p.likes, media:[], comments:p.comments||[]})))) }catch(e){} }
+
+async function savePosts() {
+  try {
+    await idbSet('michi_posts', posts);
+
+    localStorage.setItem(
+      'michi_posts_backup',
+      JSON.stringify(
+        posts.map(p => ({
+          text: p.text,
+          liked: p.liked,
+          likes: p.likes,
+          media: [],
+          comments: p.comments || []
+        }))
+      )
+    );
+
+    if (!michiAuthSession?.user) {
+      console.warn('MICHI: Sign in to sync posts with Supabase.');
+      return;
+    }
+
+    const rows = posts
+      .filter(p => p.supabaseId)
+      .map(p => ({
+        Id: p.supabaseId,
+        user_id: michiAuthSession.user.id,
+        content: p.text || '',
+        media_url: null,
+        likes_count: p.likes || 0
+      }));
+
+    if (rows.length > 0) {
+      const { error } = await michiSupabase
+        .from('Posts')
+        .upsert(rows, { onConflict: 'Id' });
+
+      if (error) {
+        console.error('MICHI posts sync error:', error);
+      }
+    }
+  } catch (e) {
+    console.error('MICHI savePosts error:', e);
+  }
+}
+
 async function saveProfile(){ try{ await idbSet('michi_profile', profileData); localStorage.setItem('michi_profile', JSON.stringify(profileData)) }catch(e){} }
 async function saveNotifications(){ try{ await idbSet('michi_notifications', notifications); localStorage.setItem('michi_notifications', JSON.stringify(notifications)) }catch(e){} }
 
