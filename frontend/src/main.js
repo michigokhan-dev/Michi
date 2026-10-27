@@ -298,19 +298,60 @@ if (authButton) {
   const input=document.getElementById('postInput')
   const btn=document.getElementById('shareBtn')
   
-  function addPost(){
-    const text=input?.value.trim()
-    if(!text && draftMedia.length===0) return
-    posts.unshift({ text: text||'', media: [...draftMedia], liked: false, likes: 0, comments: [] })
-    savePosts()
-    draftMedia = []
-    if(input) input.value=''
-    if(postPhotoPreview) postPhotoPreview.classList.add('hidden')
-    if(previewGrid) previewGrid.innerHTML=''
-    const fileInput=document.getElementById('postPhotoInput')
-    if(fileInput) fileInput.value=''
-    render()
+  
+async function addPost() {
+  if (!michiAuthSession?.user) {
+    alert('Please sign in to create a post.');
+    window.location.href = './signin.html';
+    return;
   }
+
+  const text = input?.value.trim();
+
+  if (!text && draftMedia.length === 0) return;
+
+  const { data, error } = await michiSupabase
+    .from('Posts')
+    .insert({
+      user_id: michiAuthSession.user.id,
+      content: text || '',
+      media_url: null,
+      likes_count: 0
+    })
+    .select('Id, user_id, content, media_url, likes_count, created_at')
+    .single();
+
+  if (error) {
+    console.error('MICHI post creation error:', error);
+    alert('Could not publish your post. Please try again.');
+    return;
+  }
+
+  posts.unshift({
+    supabaseId: data.Id,
+    user_id: data.user_id,
+    text: data.content,
+    media: [...draftMedia],
+    liked: false,
+    likes: data.likes_count || 0,
+    comments: [],
+    created_at: data.created_at
+  });
+
+  await savePosts();
+
+  draftMedia = [];
+
+  if (input) input.value = '';
+  if (postPhotoPreview) postPhotoPreview.classList.add('hidden');
+  if (previewGrid) previewGrid.innerHTML = '';
+
+  const fileInput = document.getElementById('postPhotoInput');
+  if (fileInput) fileInput.value = '';
+
+  render();
+}
+
   
   if(btn && input){ btn.onclick=addPost; input.onkeydown=(e)=>{ if(e.key==='Enter') addPost() } }
   
