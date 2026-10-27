@@ -85,6 +85,7 @@ michiSupabase.auth.onAuthStateChange(async (_event, session) => {
   }
 
   await loadMichiUserProfile(session);
+  await loadSupabaseNotifications();
 
   if (typeof render === 'function') {
     render();
