@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign Up | MICHI</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="./michi_goldbox_icon_192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#000; color:#fff; font-family:Arial,sans-serif; }
+    .gold { color:#D4AF37; }
+    .field {
+      width:100%; background:#0b0b0b; color:#fff;
+      border:1px solid #39301b; border-radius:10px;
+      padding:13px; outline:none;
+    }
+    .field:focus { border-color:#D4AF37; }
+    .gold-button {
+      width:100%; background:#D4AF37; color:#000;
+      padding:14px; border-radius:10px; font-weight:bold;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-5 py-10">
+
+  <main class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <img src="./michi_goldbox_icon_192.png"
+           alt="MICHI logo"
+           class="w-20 h-20 object-contain mx-auto mb-4">
+      <h1 class="gold text-3xl tracking-[0.3em] font-bold">MICHI</h1>
+      <p class="text-gray-400 mt-2">Black background. Gold soul.</p>
+      <h2 class="text-xl mt-8">Create your account</h2>
+    </div>
+
+    <form id="signupForm" class="space-y-4">
+      <input id="fullName" class="field" type="text"
+             placeholder="Full name" autocomplete="name" required>
+
+      <input id="username" class="field" type="text"
+             placeholder="Username" autocomplete="username"
+             minlength="3" maxlength="30" required>
+
+      <input id="email" class="field" type="email"
+             placeholder="Email address" autocomplete="email" required>
+
+      <div class="relative">
+        <input id="password" class="field pr-20" type="password"
+               placeholder="Password" autocomplete="new-password"
+               minlength="8" required>
+        <button type="button" id="togglePassword"
+          class="absolute right-3 top-1/2 -translate-y-1/2 gold text-sm">
+          Show
+        </button>
+      </div>
+
+      <p id="message" class="text-sm" role="status" aria-live="polite"></p>
+
+      <button id="createAccount" class="gold-button" type="submit">
+        Create Account
+      </button>
+    </form>
+
+    <p class="text-center text-gray-400 mt-6">
+      Already have an account?
+      <a href="./signin.html" class="gold underline">Sign in</a>
+    </p>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // Replace these two placeholders with your Supabase project details.
+    const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+
+    const message = document.getElementById('message');
+    const form = document.getElementById('signupForm');
+    const submitButton = document.getElementById('createAccount');
+
+    document.getElementById('togglePassword').addEventListener('click', () => {
+      const password = document.getElementById('password');
+      const button = document.getElementById('togglePassword');
+      const showing = password.type === 'text';
+      password.type = showing ? 'password' : 'text';
+      button.textContent = showing ? 'Show' : 'Hide';
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.textContent = '';
+      message.className = 'text-sm';
+      submitButton.disabled = true;
+      submitButton.textContent = 'Creating account...';
+
+      try {
+        if (
+          SUPABASE_URL.startsWith('YOUR_') ||
+          SUPABASE_KEY.startsWith('YOUR_')
+        ) {
+          throw new Error('Supabase connection details have not been added yet.');
+        }
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const fullName = document.getElementById('fullName').value.trim();
+        const username = document.getElementById('username').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              username: username
+            },
+            emailRedirectTo:
+              'https://michigokhan-dev.github.io/Michi/signin.html'
+          }
+        });
+
+        if (error) throw error;
+
+        message.textContent =
+          'Account request submitted. Check your email for the confirmation link.';
+        message.className = 'text-sm gold';
+        form.reset();
+      } catch (error) {
+        message.textContent = error.message || 'Something went wrong.';
+        message.className = 'text-sm text-red-400';
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Create Account';
+      }
+    });
+  </script>
+</body>
+</html>
