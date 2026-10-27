@@ -250,6 +250,35 @@ async function loadAll(){
   }
 }
 
+
+async function loadSupabasePosts() {
+  if (!michiAuthSession?.user) return;
+
+  const { data, error } = await michiSupabase
+    .from('Posts')
+    .select('Id, user_id, content, media_url, likes_count, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('MICHI posts loading error:', error);
+    return;
+  }
+
+  posts = (data || []).map(post => ({
+    supabaseId: post.Id,
+    user_id: post.user_id,
+    text: post.content || '',
+    media: [],
+    liked: false,
+    likes: post.likes_count || 0,
+    comments: [],
+    created_at: post.created_at
+  }));
+
+  await idbSet('michi_posts', posts);
+}
+
+
 let Comps = {}
 async function load(){
   const t=Date.now()
