@@ -1,3 +1,47 @@
+
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// Use the same values as signin.html
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+
+const michiSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let michiAuthSession = null;
+
+window.michiAuthButtonClick = async function () {
+  const { data, error } = await michiSupabase.auth.getSession();
+
+  if (error) {
+    alert('Unable to check sign-in status. Please try again.');
+    return;
+  }
+
+  if (!data.session) {
+    window.location.href = './signin.html';
+    return;
+  }
+
+  const { error: signOutError } = await michiSupabase.auth.signOut();
+
+  if (signOutError) {
+    alert('Sign out failed. Please try again.');
+  }
+};
+
+michiSupabase.auth.onAuthStateChange((_event, session) => {
+  michiAuthSession = session;
+
+  const authButton = document.getElementById('michiAuthButton');
+
+  if (authButton) {
+    authButton.textContent = session
+      ? 'Sign out'
+      : 'Sign in / Sign up';
+  }
+});
+
+
 let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [], comments: [] }]
 let defaultProfile = { name: "Michi Ayaydin", bio: "Luxury mind • Black & Gold soul ✨", followers: 342, following: 128, photo: null }
 
