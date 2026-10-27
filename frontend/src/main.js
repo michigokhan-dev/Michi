@@ -101,6 +101,42 @@ let profileData = {...defaultProfile}
 let notifications = []
 let draftMedia = []
 
+async function loadSupabaseNotifications() {
+  if (!michiAuthSession?.user) {
+    notifications = [];
+    return;
+  }
+
+  const { data, error } = await michiSupabase
+    .from('Notifications')
+    .select(`
+      id,
+      user_id,
+      actor_id,
+      type,
+      post_id,
+      comment_id,
+      message,
+      is_read,
+      created_at,
+      actor:Profiles!Notifications_actor_id_fkey (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('user_id', michiAuthSession.user.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('MICHI notifications loading error:', error);
+    return;
+  }
+
+  notifications = data || [];
+}
+
 // === SIKISTIRMA - OTOMATIK ===
 function compressImage(dataUrl, maxW=800, quality=0.7){
   return new Promise((resolve)=>{
