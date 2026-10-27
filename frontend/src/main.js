@@ -657,11 +657,13 @@ loadAll().then(async () => {
 
   michiAuthSession = data?.session || null;
 
-  if (michiAuthSession) {
-    await loadMichiUserProfile(michiAuthSession);
-  }
+if (michiAuthSession) {
+  await loadMichiUserProfile(michiAuthSession);
+  await loadSupabasePosts();
+  await loadSupabaseNotifications();
+}
 
-  render();
+render();
 });
 
 window.addEventListener('hashchange', render);
