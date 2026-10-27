@@ -8,6 +8,50 @@ const michiSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let michiAuthSession = null;
 
+
+let michiCurrentProfile = null;
+
+async function loadMichiUserProfile(session) {
+  if (!session?.user) {
+    michiCurrentProfile = null;
+    return;
+  }
+
+  const user = session.user;
+
+  const { data, error } = await michiSupabase
+    .from('Profiles')
+    .select('id, username, full_name, avatar_url, bio')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('MICHI profile loading error:', error);
+  }
+
+  michiCurrentProfile = {
+    id: user.id,
+    username: data?.username || user.user_metadata?.username || '',
+    full_name:
+      data?.full_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split('@')[0] ||
+      'MICHI User',
+    avatar_url: data?.avatar_url || null,
+    bio: data?.bio || ''
+  };
+
+  profileData.name = michiCurrentProfile.full_name;
+
+  if (michiCurrentProfile.bio) {
+    profileData.bio = michiCurrentProfile.bio;
+  }
+
+  await saveProfile();
+}
+
+
 window.michiAuthButtonClick = async function () {
   const { data, error } = await michiSupabase.auth.getSession();
 
@@ -28,7 +72,8 @@ window.michiAuthButtonClick = async function () {
   }
 };
 
-michiSupabase.auth.onAuthStateChange((_event, session) => {
+
+michiSupabase.auth.onAuthStateChange(async (_event, session) => {
   michiAuthSession = session;
 
   const authButton = document.getElementById('michiAuthButton');
@@ -38,7 +83,14 @@ michiSupabase.auth.onAuthStateChange((_event, session) => {
       ? 'Sign out'
       : 'Sign in / Sign up';
   }
+
+  await loadMichiUserProfile(session);
+
+  if (typeof render === 'function') {
+    render();
+  }
 });
+
 
 
 let defaultPosts = [{ text: "Welcome to MICHI - Black background, Gold soul. This is luxury social. ✨", liked: false, likes: 0, media: [], comments: [] }]
@@ -351,7 +403,24 @@ document.getElementById('closeGallery').onclick=()=>{
   document.body.style.overflow='auto'
 }
 
-loadAll().then(()=>{
-  load().then(render)
-})
-window.addEventListener('hashchange', render)
+
+loadAll().then(async () => {
+  await load();
+
+  const { data, error } = await michiSupabase.auth.getSession();
+
+  if (error) {
+    console.error('MICHI session loading error:', error);
+  }
+
+  michiAuthSession = data?.session || null;
+
+  if (michiAuthSession) {
+    await loadMichiUserProfile(michiAuthSession);
+  }
+
+  render();
+});
+
+window.addEventListener('hashchange', render);
+
