@@ -138,6 +138,13 @@ async function render(){
   else { content = `${Comps.SearchBar()}${Comps.Story()}${Comps.PostInput()}${Comps.PostList(posts)}` }
 
   document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
+  const authButton = document.getElementById('michiAuthButton');
+
+if (authButton) {
+  authButton.textContent = michiAuthSession
+    ? 'Sign out'
+    : 'Sign in / Sign up';
+}
   
   const previewGrid = document.getElementById('previewGrid')
   const postPhotoPreview = document.getElementById('postPhotoPreview')
