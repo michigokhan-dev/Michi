@@ -187,7 +187,7 @@ async function render(){
   let content = ''
   if(page === 'profile'){ content = Comps.Profile(posts, profileData) }
   else if(page === 'notifications'){ content = Comps.NotificationsPage(notifications) }
-  else { content = `${Comps.SearchBar()}${Comps.Story()}${Comps.PostInput()}${Comps.PostList(posts)}` }
+  else { content = `${Comps.SearchBar()}${Comps.Story()}${Comps.PostInput()}${Comps.PostList(posts, profileData)}` }
 
   document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
   const authButton = document.getElementById('michiAuthButton');
