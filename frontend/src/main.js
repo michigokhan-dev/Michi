@@ -278,9 +278,6 @@ async function loadSupabasePosts() {
   await idbSet('michi_posts', posts);
 }
 
-
-
-
 let Comps = {}
 async function load(){
   const t=Date.now()
