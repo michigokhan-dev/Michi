@@ -251,12 +251,25 @@ async function loadAll(){
 }
 
 
+
 async function loadSupabasePosts() {
   if (!michiAuthSession?.user) return;
 
   const { data, error } = await michiSupabase
     .from('Posts')
-    .select('Id, user_id, content, media_url, likes_count, created_at')
+    .select(`
+      Id,
+      user_id,
+      content,
+      media_url,
+      likes_count,
+      created_at,
+      author:Profiles!Posts_user_id_fkey (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -264,19 +277,26 @@ async function loadSupabasePosts() {
     return;
   }
 
-  posts = (data || []).map(post => ({
-    supabaseId: post.Id,
-    user_id: post.user_id,
-    text: post.content || '',
-    media: [],
-    liked: false,
-    likes: post.likes_count || 0,
-    comments: [],
-    created_at: post.created_at
-  }));
+  posts = (data || []).map(post => {
+    const author = post.author;
+
+    return {
+      supabaseId: post.Id,
+      user_id: post.user_id,
+      user_name: author?.full_name || author?.username || 'MICHI User',
+      user_avatar: author?.avatar_url || './IMG_3700.jpeg',
+      text: post.content || '',
+      media: [],
+      liked: false,
+      likes: post.likes_count || 0,
+      comments: [],
+      created_at: post.created_at
+    };
+  });
 
   await idbSet('michi_posts', posts);
 }
+
 
 
 let Comps = {}
