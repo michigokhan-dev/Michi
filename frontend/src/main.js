@@ -226,7 +226,10 @@ async function render(){
   else if(page === 'notifications'){ content = Comps.NotificationsPage(notifications) }
   else { content = `${Comps.SearchBar()}${Comps.Story()}${Comps.PostInput()}${Comps.PostList(posts, profileData)}` }
 
-  document.getElementById('app').innerHTML = `${Comps.Navbar(notifications.length)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, notifications.length)}`
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+document.getElementById('app').innerHTML =
+  `${Comps.Navbar(unreadCount)}<div class="pb-20">${content}</div>${Comps.BottomNav(page, unreadCount)}`;
   const authButton = document.getElementById('michiAuthButton');
 
 if (authButton) {
