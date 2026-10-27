@@ -251,6 +251,7 @@ async function loadAll(){
 }
 
 
+
 async function loadSupabasePosts() {
   if (!michiAuthSession?.user) return;
 
@@ -264,16 +265,41 @@ async function loadSupabasePosts() {
     return;
   }
 
-  posts = (data || []).map(post => ({
-    supabaseId: post.Id,
-    user_id: post.user_id,
-    text: post.content || '',
-    media: [],
-    liked: false,
-    likes: post.likes_count || 0,
-    comments: [],
-    created_at: post.created_at
-  }));
+  const userIds = [...new Set((data || []).map(post => post.user_id).filter(Boolean))];
+
+  let profilesById = {};
+
+  if (userIds.length > 0) {
+    const { data: profiles, error: profilesError } = await michiSupabase
+      .from('Profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('MICHI post profiles loading error:', profilesError);
+    } else {
+      (profiles || []).forEach(profile => {
+        profilesById[profile.id] = profile;
+      });
+    }
+  }
+
+  posts = (data || []).map(post => {
+    const author = profilesById[post.user_id];
+
+    return {
+      supabaseId: post.Id,
+      user_id: post.user_id,
+      user_name: author?.full_name || author?.username || 'MICHI User',
+      user_avatar: author?.avatar_url || './IMG_3700.jpeg',
+      text: post.content || '',
+      media: [],
+      liked: false,
+      likes: post.likes_count || 0,
+      comments: [],
+      created_at: post.created_at
+    };
+  });
 
   await idbSet('michi_posts', posts);
 }
