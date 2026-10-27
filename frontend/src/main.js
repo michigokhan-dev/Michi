@@ -251,8 +251,6 @@ async function loadAll(){
 }
 
 
-
-
 async function loadSupabasePosts() {
   if (!michiAuthSession?.user) return;
 
