@@ -432,6 +432,39 @@ if (authButton) {
     };
   }
 
+    // Open notification and navigate to its post
+  document.querySelectorAll('.openNotification').forEach(button => {
+    button.onclick = async () => {
+      const index = Number(button.dataset.index);
+      const notification = notifications[index];
+      if (!notification) return;
+
+      if (!notification.is_read && michiAuthSession?.user) {
+        const { error } = await michiSupabase
+          .from('Notifications')
+          .update({ is_read: true })
+          .eq('id', notification.id)
+          .eq('user_id', michiAuthSession.user.id);
+
+        if (error) {
+          console.error('Mark notification read error:', error);
+        } else {
+          notification.is_read = true;
+        }
+      }
+
+      await loadSupabaseNotifications();
+
+      if (notification.post_id) {
+        location.hash = 'feed';
+        render();
+      } else {
+        location.hash = 'notifications';
+        render();
+      }
+    };
+  });
+  
   document.querySelectorAll('.likeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications[i].liked=!notifications[i].liked; notifications[i].likes+=notifications[i].liked?1:-1; saveNotifications(); render() } })
   document.querySelectorAll('.closeNotifBtn').forEach(b=>{ b.onclick=()=>{ const i=b.getAttribute('data-index'); notifications.splice(i,1); saveNotifications(); render() } })
 }
