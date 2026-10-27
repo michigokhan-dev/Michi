@@ -1,6 +1,6 @@
 export function PostList(posts, profileData){
-  const displayName = profileData?.name || 'MICHI User';
-  const profilePhoto = profileData?.photo || './IMG_3700.jpeg';
+  const displayName = post.user_name || profileData?.name || 'MICHI User';
+const profilePhoto = post.user_avatar || profileData?.photo || './IMG_3700.jpeg';
 
   return posts.map((post, index) => {
     let mediaHtml = '';
