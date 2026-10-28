@@ -1,29 +1,38 @@
-export function PostList(posts, profileData){
-  const displayName = profileData?.name || 'MICHI User';
-const profilePhoto = profileData?.photo || './IMG_3700.jpeg';
 
+export function PostList(posts, profileData, currentUserId) {
   return posts.map((post, index) => {
+    const isOwnPost =
+      Boolean(currentUserId) &&
+      post.user_id === currentUserId;
+
+    const displayName = isOwnPost
+      ? 'You'
+      : (post.user_name || 'MICHI User');
+
+    const profilePhoto =
+      post.user_avatar || './IMG_3700.jpeg';
+
     let mediaHtml = '';
 
-    if(post.media && post.media.length > 0){
+    if (post.media && post.media.length > 0) {
       mediaHtml = `<div class="mt-3 grid ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2">` +
         post.media.map((m, mi) => {
           const mLikes = m.likes || 0;
           const mComments = m.comments ? m.comments.length : 0;
           const mLiked = m.liked ? '♥' : '♡';
 
-          if(m.type === 'video'){
+          if (m.type === 'video') {
             return `<div class="relative cursor-pointer group" onclick="openMediaGallery(${index}, ${mi})">
               <video src="${m.src}" class="rounded-xl w-full max-h-96 bg-black pointer-events-none"></video>
               <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2.5 py-1 rounded-full">${mLiked} ${mLikes} • 💬 ${mComments}</div>
               <div class="absolute inset-0 bg-white/0 group-hover:bg-white/5 rounded-xl transition"></div>
             </div>`;
-          } else {
-            return `<div class="relative cursor-pointer group" onclick="openMediaGallery(${index}, ${mi})">
-              <img src="${m.src}" class="rounded-xl w-full max-h-96 object-cover group-hover:brightness-110 transition">
-              <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2.5 py-1 rounded-full">${mLiked} ${mLikes} • 💬 ${mComments}</div>
-            </div>`;
           }
+
+          return `<div class="relative cursor-pointer group" onclick="openMediaGallery(${index}, ${mi})">
+            <img src="${m.src}" class="rounded-xl w-full max-h-96 object-cover group-hover:brightness-110 transition">
+            <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2.5 py-1 rounded-full">${mLiked} ${mLikes} • 💬 ${mComments}</div>
+          </div>`;
         }).join('') + `</div>`;
     }
 
